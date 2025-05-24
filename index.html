@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>3D Paint</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            touch-action: none;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a1a;
+            color: #ffffff;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        #toolbar {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 8px;
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            cursor: move;
+            user-select: none;
+            transition: all 0.3s ease;
+            z-index: 1000;
+            max-width: 200px;
+            transform-origin: top left;
+        }
+
+        #toolbar.collapsed {
+            transform: translateX(-90%);
+        }
+
+        #toolbar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 3px;
+            cursor: move;
+        }
+
+        #toolbar-title {
+            font-size: 11px;
+            color: #ddd;
+            margin: 0;
+        }
+
+        #collapse-button {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            cursor: pointer;
+            padding: 1px 6px;
+            font-size: 10px;
+            border-radius: 3px;
+            transition: all 0.3s ease;
+        }
+
+        #collapse-button:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .tool-group {
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 4px;
+            border-radius: 4px;
+            margin-bottom: 3px;
+            transition: all 0.3s ease;
+        }
+
+        .tool-group.collapsed {
+            display: none;
+        }
+
+        .tool-group-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            margin-bottom: 3px;
+        }
+
+        .tool-group-title {
+            font-size: 11px;
+            color: #ddd;
+            margin: 0;
+        }
+
+        .tool-group-toggle {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            cursor: pointer;
+            padding: 1px 6px;
+            font-size: 9px;
+            border-radius: 3px;
+            transition: all 0.3s ease;
+        }
+
+        .tool-group-toggle:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .tool-button {
+            background: #333;
+            border: none;
+            color: white;
+            padding: 6px;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: background 0.3s;
+            width: 100%;
+            margin-bottom: 2px;
+            font-size: 12px;
+            touch-action: manipulation;
+        }
+
+        .tool-button:hover {
+            background: #444;
+        }
+
+        .tool-button.active {
+            background: #666;
+        }
+
+        #color-picker {
+            width: 100%;
+            height: 25px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            margin-bottom: 3px;
+            touch-action: manipulation;
+        }
+
+        #size-slider {
+            width: 100%;
+            margin: 3px 0;
+            touch-action: manipulation;
+        }
+
+        .color-preset {
+            width: 20px;
+            height: 20px;
+            border: 1px solid #333;
+            border-radius: 3px;
+            cursor: pointer;
+            display: inline-block;
+            margin: 1px;
+            touch-action: manipulation;
+        }
+
+        .color-preset:hover {
+            transform: scale(1.1);
+        }
+
+        .color-preset.active {
+            border-color: #fff;
+        }
+
+        #instructions {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            max-width: 300px;
+            display: none;
+            z-index: 1001;
+        }
+
+        #instructions-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        #instructions h2 {
+            margin: 0;
+            color: #fff;
+            font-size: 16px;
+        }
+
+        #close-instructions {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            cursor: pointer;
+            padding: 2px 8px;
+            font-size: 12px;
+            border-radius: 3px;
+            transition: all 0.3s ease;
+        }
+
+        #close-instructions:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        #instructions ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        #instructions li {
+            margin-bottom: 10px;
+            color: #ddd;
+            font-size: 14px;
+        }
+
+        #instructions li ul {
+            margin-top: 5px;
+            margin-left: 15px;
+        }
+
+        #instructions li ul li {
+            margin-bottom: 5px;
+        }
+
+        #instructions-button {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #333;
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        #instructions-button:hover {
+            background: #444;
+        }
+
+        .tool-options {
+            display: none;
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 5px;
+        }
+
+        .tool-options.active {
+            display: block;
+        }
+
+        /* Стили для больших экранов (телевизоры) */
+        @media (min-width: 1920px) {
+            #toolbar {
+                transform: scale(1.5);
+                top: 30px;
+                left: 30px;
+            }
+
+            .tool-button {
+                font-size: 16px;
+                padding: 10px;
+            }
+
+            #color-picker {
+                height: 35px;
+            }
+
+            .color-preset {
+                width: 30px;
+                height: 30px;
+            }
+
+            #instructions {
+                transform: scale(1.5);
+                top: 30px;
+                right: 30px;
+            }
+        }
+
+        /* Стили для планшетов */
+        @media (max-width: 1024px) {
+            #toolbar {
+                max-width: 180px;
+                top: 15px;
+                left: 15px;
+            }
+
+            .tool-button {
+                font-size: 14px;
+                padding: 8px;
+            }
+
+            #color-picker {
+                height: 30px;
+            }
+
+            .color-preset {
+                width: 25px;
+                height: 25px;
+            }
+        }
+
+        /* Стили для мобильных устройств */
+        @media (max-width: 768px) {
+            #toolbar {
+                max-width: 140px;
+                top: 10px;
+                left: 10px;
+                padding: 5px;
+            }
+
+            .tool-button {
+                padding: 6px;
+                font-size: 12px;
+                margin-bottom: 1px;
+            }
+
+            .tool-group {
+                padding: 3px;
+                margin-bottom: 2px;
+            }
+
+            .tool-group-header {
+                margin-bottom: 2px;
+            }
+
+            .tool-group-title {
+                font-size: 10px;
+            }
+
+            .tool-group-toggle {
+                padding: 1px 4px;
+                font-size: 8px;
+            }
+
+            #color-picker {
+                height: 25px;
+                margin-bottom: 2px;
+            }
+
+            .color-preset {
+                width: 20px;
+                height: 20px;
+                margin: 1px;
+            }
+
+            #size-slider {
+                margin: 2px 0;
+            }
+
+            #toolbar-header {
+                margin-bottom: 2px;
+            }
+
+            #toolbar-title {
+                font-size: 10px;
+            }
+
+            #collapse-button {
+                padding: 1px 4px;
+                font-size: 8px;
+            }
+        }
+
+        /* Стили для маленьких мобильных устройств */
+        @media (max-width: 480px) {
+            #toolbar {
+                max-width: 120px;
+                top: 5px;
+                left: 5px;
+                padding: 4px;
+            }
+
+            .tool-button {
+                padding: 5px;
+                font-size: 11px;
+                margin-bottom: 1px;
+            }
+
+            .tool-group {
+                padding: 2px;
+                margin-bottom: 1px;
+            }
+
+            .tool-group-header {
+                margin-bottom: 1px;
+            }
+
+            .tool-group-title {
+                font-size: 9px;
+            }
+
+            .tool-group-toggle {
+                padding: 1px 3px;
+                font-size: 7px;
+            }
+
+            #color-picker {
+                height: 20px;
+                margin-bottom: 1px;
+            }
+
+            .color-preset {
+                width: 18px;
+                height: 18px;
+                margin: 1px;
+            }
+
+            #size-slider {
+                margin: 1px 0;
+            }
+
+            #toolbar-header {
+                margin-bottom: 1px;
+            }
+
+            #toolbar-title {
+                font-size: 9px;
+            }
+
+            #collapse-button {
+                padding: 1px 3px;
+                font-size: 7px;
+            }
+        }
+
+        /* Стили для очень маленьких мобильных устройств */
+        @media (max-width: 360px) {
+            #toolbar {
+                max-width: 100px;
+                top: 3px;
+                left: 3px;
+                padding: 3px;
+            }
+
+            .tool-button {
+                padding: 4px;
+                font-size: 10px;
+                margin-bottom: 1px;
+            }
+
+            .tool-group {
+                padding: 2px;
+                margin-bottom: 1px;
+            }
+
+            .tool-group-header {
+                margin-bottom: 1px;
+            }
+
+            .tool-group-title {
+                font-size: 8px;
+            }
+
+            .tool-group-toggle {
+                padding: 1px 2px;
+                font-size: 6px;
+            }
+
+            #color-picker {
+                height: 18px;
+                margin-bottom: 1px;
+            }
+
+            .color-preset {
+                width: 16px;
+                height: 16px;
+                margin: 1px;
+            }
+
+            #size-slider {
+                margin: 1px 0;
+            }
+
+            #toolbar-header {
+                margin-bottom: 1px;
+            }
+
+            #toolbar-title {
+                font-size: 8px;
+            }
+
+            #collapse-button {
+                padding: 1px 2px;
+                font-size: 6px;
+            }
+        }
+
+        /* Улучшенные стили для сенсорных устройств */
+        @media (hover: none) {
+            .tool-button {
+                min-height: 36px; /* Уменьшенная минимальная высота для мобильных */
+            }
+
+            .color-preset {
+                min-width: 36px;
+                min-height: 36px;
+            }
+
+            #color-picker {
+                min-height: 36px;
+            }
+
+            #size-slider {
+                min-height: 36px;
+            }
+        }
+
+        /* Стили для устройств с высокой плотностью пикселей */
+        @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+            #toolbar {
+                backdrop-filter: blur(20px);
+            }
+        }
+
+        /* Стили для устройств с поддержкой тёмной темы */
+        @media (prefers-color-scheme: dark) {
+            #toolbar {
+                background: rgba(0, 0, 0, 0.2);
+            }
+        }
+
+        /* Стили для мобильных устройств в инструкции */
+        @media (max-width: 768px) {
+            #instructions li ul li {
+                font-size: 12px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            #instructions li ul li {
+                font-size: 11px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+    <div id="toolbar">
+        <div id="toolbar-header">
+            <h3 id="toolbar-title">Инструменты</h3>
+            <button id="collapse-button">_</button>
+        </div>
+        <div class="tool-group">
+            <div class="tool-group-header">
+                <h3 class="tool-group-title">Основные инструменты</h3>
+                <button class="tool-group-toggle">_</button>
+            </div>
+            <div class="tool-group-content">
+                <input type="color" id="color-picker" value="#ff0000">
+                <input type="range" id="size-slider" min="1" max="50" value="5">
+                <button class="tool-button" id="brush-tool">Кисть [1]</button>
+                <button class="tool-button" id="eraser-tool">Ластик [2]</button>
+                <button class="tool-button" id="spray-tool">Спрей [3]</button>
+                <button class="tool-button" id="line-tool">Линия [4]</button>
+                <button class="tool-button" id="circle-tool">Круг [5]</button>
+                <button class="tool-button" id="rectangle-tool">Прямоугольник [6]</button>
+            </div>
+        </div>
+
+        <div class="tool-group">
+            <div class="tool-group-header">
+                <h3 class="tool-group-title">Цвета</h3>
+                <button class="tool-group-toggle">_</button>
+            </div>
+            <div class="tool-group-content">
+                <div id="color-presets">
+                    <div class="color-preset" style="background-color: #ff0000;" data-color="#ff0000"></div>
+                    <div class="color-preset" style="background-color: #00ff00;" data-color="#00ff00"></div>
+                    <div class="color-preset" style="background-color: #0000ff;" data-color="#0000ff"></div>
+                    <div class="color-preset" style="background-color: #ffff00;" data-color="#ffff00"></div>
+                    <div class="color-preset" style="background-color: #ff00ff;" data-color="#ff00ff"></div>
+                    <div class="color-preset" style="background-color: #00ffff;" data-color="#00ffff"></div>
+                    <div class="color-preset" style="background-color: #ffffff;" data-color="#ffffff"></div>
+                    <div class="color-preset" style="background-color: #000000;" data-color="#000000"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tool-group">
+            <div class="tool-group-header">
+                <h3 class="tool-group-title">Действия</h3>
+                <button class="tool-group-toggle">_</button>
+            </div>
+            <div class="tool-group-content">
+                <button class="tool-button" id="clear-canvas">Очистить [Z]</button>
+                <button class="tool-button" id="undo">Отменить [Q]</button>
+                <button class="tool-button" id="redo">Повторить [E]</button>
+                <button class="tool-button" id="save-image">Сохранить [U]</button>
+            </div>
+        </div>
+
+        <div class="tool-group">
+            <div class="tool-group-header">
+                <h3 class="tool-group-title">Камера</h3>
+                <button class="tool-group-toggle">_</button>
+            </div>
+            <div class="tool-group-content">
+                <button class="tool-button" id="lock-camera">Блокировка камеры [G]</button>
+                <button class="tool-button" id="reset-camera">Сбросить камеру [R]</button>
+            </div>
+        </div>
+    </div>
+    <button id="instructions-button">Инструкция</button>
+    <div id="instructions">
+        <div id="instructions-header">
+            <h2>Как пользоваться</h2>
+            <button id="close-instructions">✕</button>
+        </div>
+        <ul>
+            <li>🎨 <strong>Режим рисования:</strong>
+                <ul>
+                    <li>Рисование: Левая кнопка мыши</li>
+                    <li>Перемещение: Клавиши WASD</li>
+                    <li>Вращение камеры: Зажмите левую кнопку мыши и двигайте</li>
+                    <li>Приближение/отдаление: Колесо мыши</li>
+                    <li>На телефоне: Два пальца для приближения/отдаления</li>
+                </ul>
+            </li>
+            <li>🛠️ <strong>Инструменты:</strong>
+                <ul>
+                    <li>Кисть: Свободное рисование</li>
+                    <li>Ластик: Стирание</li>
+                    <li>Спрей: Распыление краски</li>
+                    <li>Линия: Рисование прямых линий</li>
+                    <li>Круг: Рисование кругов</li>
+                    <li>Прямоугольник: Рисование прямоугольников</li>
+                </ul>
+            </li>
+            <li>⚡ <strong>Горячие клавиши:</strong>
+                <ul>
+                    <li>Q: Отменить</li>
+                    <li>E: Повторить</li>
+                    <li>U: Сохранить</li>
+                    <li>Z: Очистить</li>
+                    <li>G: Блокировка камеры</li>
+                    <li>R: Сбросить камеру</li>
+                    <li>1-6: Выбор инструментов</li>
+                </ul>
+            </li>
+        </ul>
+    </div>
+
+    <script type="module" src="main.js"></script>
+</body>
+</html>
